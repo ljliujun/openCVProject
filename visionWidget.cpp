@@ -1,8 +1,6 @@
 ﻿#include "visionWidget.h"
-#include <QPixmap>
 #include <QLabel>
-#include <QHBoxLayout>
-#include <cmath>
+#include <algorithm>
 #include <QMessageBox>
 #include <QDebug>
 //#include "algorithm/ljgraymatch.h"
@@ -20,8 +18,7 @@ VisionWidget::VisionWidget(QWidget *parent)
 	
 }
 
-VisionWidget::~VisionWidget()
-{}
+VisionWidget::~VisionWidget() = default;
 
 void VisionWidget::initConnect()
 {
@@ -38,7 +35,7 @@ void VisionWidget::initUI()
 	const int curMatchIndex = ui.comboBoxAlgorithm->currentIndex();
 	onAlgorithmChanged(curMatchIndex);
 
-    cv::Mat imgMat = cv::imread("C:/Users/Administrator/Desktop/SaveLog/NG.bmp");
+    cv::Mat imgMat = cv::imread("F:/openCVProject/image/testImage/1.bmp");
     if (!imgMat.empty())
     {
         // 关键：保存一份 Mat 缓存，后续学习/测试都用这个原图
@@ -50,7 +47,7 @@ void VisionWidget::initUI()
 QImage VisionWidget::matToQImage(const cv::Mat& mat)
 {
     if (mat.empty())
-        return QImage();
+        return {};
 
     switch (mat.type())
     {
@@ -145,14 +142,14 @@ void VisionWidget::onBtnTestClicked()
 		{
 			int minR = ui.lineEditMinRadiusLimit->text().toInt();
 			int maxR = ui.lineEditMaxRadiusLimit->text().toInt();
-			if (minR < 2) minR = 2;
+			minR = std::max(minR, 2);
 			if (maxR <= minR) maxR = 500;
 			cm->setRadiusRange(minR, maxR);
 
 			double threshold = ui.lineEditRoundnessScore->text().toDouble() / 100.0;
-			if (threshold < 0.01) threshold = 0.01;
-			if (threshold > 1.0)   threshold = 1.0;
-			mgr.setParams(threshold, 20, 1.0);
+			threshold = std::max(threshold, 0.01);
+			threshold = std::min(threshold, 1.0);
+			mgr.setParams(threshold, 1, 1.0);
 		}
 		mgr.setSource(m_sourceMat);
 	}
@@ -165,9 +162,9 @@ void VisionWidget::onBtnTestClicked()
 			return;
 		}
 		double threshold = ui.lineEdit_Score->text().toDouble() / 100.0;
-		if (threshold < 0.01) threshold = 0.01;
-		if (threshold > 1.0)   threshold = 1.0;
-		mgr.setParams(threshold, 20, 0.5);
+		threshold = std::max(threshold, 0.01);
+		threshold = std::min(threshold, 1.0);
+		mgr.setParams(threshold, 1, 0.5);
 		mgr.prepare(m_sourceMat, m_templateMat);
 	}
 
@@ -194,10 +191,10 @@ void VisionWidget::onBtnTestClicked()
 	}
 }
 
-void VisionWidget::onAlgorithmChanged(int index)
+void VisionWidget::onAlgorithmChanged(int index) const
 {
 
-	auto setGrayMatchVisible = [=](bool isVisible)
+	auto setGrayMatchVisible = [this](bool isVisible)
 	{
 		ui.label_2->setVisible(isVisible);
 		ui.label_3->setVisible(isVisible);
@@ -209,7 +206,7 @@ void VisionWidget::onAlgorithmChanged(int index)
 		ui.comboBox_Speed->setVisible(isVisible);
 	};
 
-	auto setCircleMatchVisible = [=](bool isVisible)
+	auto setCircleMatchVisible = [this](bool isVisible)
 	{
 		ui.labelIdentifMethod->setVisible(isVisible);
 		ui.labelTargetFeatures->setVisible(isVisible);
@@ -225,14 +222,14 @@ void VisionWidget::onAlgorithmChanged(int index)
 		ui.lineEditRoundnessScore->setVisible(isVisible);
 	};
 
-	auto setWidgetVisible = [=](int index)
+	auto setWidgetVisible = [=](int idx)
 	{
-		if (index == 0)
+		if (idx == 0)
 		{
 			setGrayMatchVisible(true);
 			setCircleMatchVisible(false);
 		}
-		else if (index == 1)
+		else if (idx == 1)
 		{
 			setGrayMatchVisible(false);
 			setCircleMatchVisible(true);

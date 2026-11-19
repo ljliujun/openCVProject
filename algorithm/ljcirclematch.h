@@ -5,13 +5,13 @@
 // 圆检测结果：在 MatchResult 基础上增加圆特有的几何信息。
 // 兼容字段：topLeft / topLeftF 存外接矩形左上角（圆心 - 半径）。
 // ==============================================================
-struct CircleResult : public MatchResult
+struct CircleResult : MatchResult
 {
 	cv::Point2f center;    // 圆心（亚像素，原图坐标）
 	double      radius;    // 半径（亚像素，像素）
 	double      roundness; // 圆度：拟合归一化残差，越小越圆
 
-	CircleResult() : MatchResult(), center(0.f, 0.f), radius(0.0), roundness(0.0) {}
+	CircleResult() : center(0.f, 0.f), radius(0.0), roundness(0.0) {}
 };
 
 // ==============================================================

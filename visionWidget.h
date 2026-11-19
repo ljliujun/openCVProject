@@ -14,8 +14,8 @@ class VisionWidget : public QWidget
 
 public:
 	VisionWidget(QWidget *parent = nullptr);
-	~VisionWidget();
-	QImage matToQImage(const cv::Mat& mat);
+	~VisionWidget() override;
+	static QImage matToQImage(const cv::Mat& mat);
 private:
 	void initUI();
 	void initConnect();
@@ -23,7 +23,7 @@ private slots:
 	// ===== UI 槽函数 =====
 	void onBtnLearnClicked();            // "学习" —— 框选模板
 	void onBtnTestClicked();             // "测试" —— 执行匹配
-	void onAlgorithmChanged(int index);   // 算法下拉切换
+	void onAlgorithmChanged(int index) const;   // 算法下拉切换
 private:
 	Ui::VisionWidgetClass ui;
 	// ===== 算法相关 =====

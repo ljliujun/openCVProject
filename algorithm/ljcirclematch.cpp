@@ -1,12 +1,11 @@
 ﻿#include "ljcirclematch.h"
-#include <opencv2/imgproc.hpp>
 #include <algorithm>
-#include <cmath>
+#include <opencv2/imgproc.hpp>
 
 LJCircleMatch::LJCircleMatch()
-	: m_threshold(0.50), m_maxResults(20), m_nmsRadiusFactor(1.0)
-	, m_minRadius(10), m_maxRadius(500), m_smoothKernel(0)
-	, m_edgeThreshold(0), m_subpixel(true), m_samplePoints(360)
+	: m_threshold(0.50), m_maxResults(1), m_nmsRadiusFactor(1.0)
+	, m_minRadius(10), m_maxRadius(500), m_smoothKernel(5)
+	, m_edgeThreshold(0), m_subpixel(true), m_samplePoints(96)
 {
 	setName("CircleMatch");
 }
@@ -31,7 +30,7 @@ void LJCircleMatch::setSamplePoints(int count) { m_samplePoints = std::max(24, c
 
 static cv::Mat toGray8U(const cv::Mat& s)
 {
-	if (s.empty()) return cv::Mat();
+	if (s.empty()) return {};
 	cv::Mat g;
 	if (s.channels() == 1) { s.convertTo(g, CV_8U); return g; }
 	cv::Mat c;
@@ -42,7 +41,10 @@ static cv::Mat toGray8U(const cv::Mat& s)
 	return g;
 }
 
-static double clampd(double v, double lo, double hi) { return v < lo ? lo : (v > hi ? hi : v); }
+static double clampd(double v, double lo, double hi)
+{
+	return v < lo ? lo : (v > hi ? hi : v);
+}
 
 static double medianOfMat(const cv::Mat& m)
 {
@@ -95,7 +97,7 @@ static double fitCircleIRLS(const std::vector<cv::Point2f>& pts, cv::Point2f& c,
 		a += clampd(dl.at<double>(0), -step, step);
 		b += clampd(dl.at<double>(1), -step, step);
 		r += clampd(dl.at<double>(2), -step, step);
-		if (r < 1e-3) r = 1e-3;
+		r = std::max(r, 1e-3);
 		if (std::fabs(dl.at<double>(0)) + std::fabs(dl.at<double>(1)) + std::fabs(dl.at<double>(2)) < 1e-4) break;
 	}
 	c = cv::Point2f(static_cast<float>(a), static_cast<float>(b));
@@ -135,73 +137,168 @@ static void sampleEdgePoints(const cv::Mat& gm, double cx, double cy, double r,
 bool LJCircleMatch::match()
 {
 	clearResults();
-	if (m_source.empty()) { setError("source image is empty"); return false; }
+
+	if (m_source.empty())
+	{
+		setError("source image is empty");
+		return false;
+	}
 
 	cv::Mat gray = toGray8U(m_source);
-	if (gray.empty()) { setError("gray conversion failed"); return false; }
+	if (gray.empty())
+	{
+		setError("gray conversion failed");
+		return false;
+	}
+
+	// 降采样进行 Hough 检测，最长边限制为 800 像素
+	double scale = 1.0;
+	const int longestSide = std::max(gray.cols, gray.rows);
+	if (longestSide > 800)
+		scale = 800.0 / longestSide;
+
+	cv::Mat analysisGray;
+	cv::resize(gray, analysisGray,
+		cv::Size(cvRound(gray.cols * scale), cvRound(gray.rows * scale)),
+		0.0, 0.0, cv::INTER_AREA);
 
 	if (m_smoothKernel > 1)
 	{
-		int k = (m_smoothKernel % 2 == 0) ? m_smoothKernel + 1 : m_smoothKernel;
-		cv::GaussianBlur(gray, gray, cv::Size(k, k), 0);
+		int k = (m_smoothKernel % 2 == 0)
+			? m_smoothKernel + 1
+			: m_smoothKernel;
+		cv::GaussianBlur(analysisGray, analysisGray, cv::Size(k, k), 0);
 	}
 
-	cv::Mat gx, gy;
-	cv::Sobel(gray, gx, CV_32F, 1, 0, 3);
-	cv::Sobel(gray, gy, CV_32F, 0, 1, 3);
-	cv::Mat gm;
+	cv::Mat gx, gy, gm;
+	cv::Sobel(analysisGray, gx, CV_32F, 1, 0, 3);
+	cv::Sobel(analysisGray, gy, CV_32F, 0, 1, 3);
 	cv::magnitude(gx, gy, gm);
 
 	double high = m_edgeThreshold;
-	if (high <= 0) high = std::max(1.0, medianOfMat(gm));
+	if (high <= 0)
+		high = std::max(1.0, medianOfMat(gm));
 
-	int minR = std::max(2, m_minRadius);
-	int maxR = std::min(std::min(gray.cols, gray.rows) / 2, std::max(minR + 1, m_maxRadius));
-	if (maxR <= minR) { setError("invalid radius range"); return false; }
+	int minR = std::max(2, cvRound(m_minRadius * scale));
+	int maxR = std::min(
+		std::min(analysisGray.cols, analysisGray.rows) / 2,
+		std::max(minR + 1, cvRound(m_maxRadius * scale)));
+
+	if (maxR <= minR)
+	{
+		setError("invalid radius range");
+		return false;
+	}
 
 	std::vector<cv::Vec3f> circles;
-	cv::HoughCircles(gray, circles, cv::HOUGH_GRADIENT, 1.5, minR * 2, high, 30, minR, maxR);
+	cv::HoughCircles(
+		analysisGray,
+		circles,
+		cv::HOUGH_GRADIENT,
+		2.0,
+		std::max(minR * 2, 10),
+		high,
+		24,
+		minR,
+		maxR);
 
-	struct Cand { cv::Point2f c; double r; double score; double roundness; };
-	std::vector<Cand> cands;
-	for (const auto& cc : circles)
+	struct Cand
 	{
+		cv::Point2f c;
+		double r;
+		double score;
+		double roundness;
+	};
+
+	std::vector<Cand> cands;
+	cands.reserve(std::min<int>(circles.size(), 100));
+
+	// 避免重复耗时地拟合过多候选
+	const size_t candidateLimit = std::min<size_t>(circles.size(), 100);
+
+	for (size_t i = 0; i < candidateLimit; ++i)
+	{
+		const auto& cc = circles[i];
+
 		std::vector<cv::Point2f> pts;
-		sampleEdgePoints(gm, cc[0], cc[1], cc[2], m_samplePoints, pts);
-		if (static_cast<int>(pts.size()) < 12) continue;
+		sampleEdgePoints(
+			gm,
+			cc[0],
+			cc[1],
+			cc[2],
+			m_samplePoints,
+			pts);
+
+		if (static_cast<int>(pts.size()) < 12)
+			continue;
+
 		cv::Point2f fc(cc[0], cc[1]);
-		double fr = cc[2], roundness = 0.0;
+		double fr = cc[2];
+		double roundness = 0.0;
+
 		if (m_subpixel)
 			roundness = fitCircleIRLS(pts, fc, fr);
-		double score = (static_cast<double>(pts.size()) / m_samplePoints)
-			* std::max(0.0, 1.0 - roundness * 4.0);
-		if (score < m_threshold) continue;
-		cands.push_back({ fc, fr, score, roundness });
+
+		double score =
+			static_cast<double>(pts.size()) / m_samplePoints *
+			std::max(0.0, 1.0 - roundness * 4.0);
+
+		if (score < m_threshold)
+			continue;
+
+		cands.push_back({
+			cv::Point2f(fc.x / static_cast<float>(scale),
+				fc.y / static_cast<float>(scale)),
+			fr / scale,
+			score,
+			roundness
+		});
 	}
 
 	std::sort(cands.begin(), cands.end(),
-		[](const Cand& a, const Cand& b) { return a.score > b.score; });
+		[](const Cand& a, const Cand& b)
+		{
+			return a.score > b.score;
+		});
 
 	for (const auto& c : cands)
 	{
-		if (static_cast<int>(m_results.size()) >= m_maxResults) break;
-		bool dup = false;
+		if (static_cast<int>(m_results.size()) >= m_maxResults)
+			break;
+
+		bool duplicate = false;
+
 		for (const auto* k : m_results)
 		{
 			const auto* kc = dynamic_cast<const CircleResult*>(k);
-			if (kc && cv::norm(c.c - kc->center) < m_nmsRadiusFactor * std::min(c.r, kc->radius))
-			{ dup = true; break; }
-		}
-		if (dup) continue;
+			if (!kc)
+				continue;
 
-		auto* res = new CircleResult();
-		res->center = c.c;
-		res->radius = c.r;
-		res->roundness = c.roundness;
-		res->score = c.score;
-		res->topLeftF = cv::Point2f(c.c.x - static_cast<float>(c.r), c.c.y - static_cast<float>(c.r));
-		res->topLeft = cv::Point(cvRound(res->topLeftF.x), cvRound(res->topLeftF.y));
-		m_results.push_back(res);
+			if (cv::norm(c.c - kc->center) <
+				m_nmsRadiusFactor * std::min(c.r, kc->radius))
+			{
+				duplicate = true;
+				break;
+			}
+		}
+
+		if (duplicate)
+			continue;
+
+		auto* result = new CircleResult();
+		result->center = c.c;
+		result->radius = c.r;
+		result->roundness = c.roundness;
+		result->score = c.score;
+		result->topLeftF = cv::Point2f(
+			c.c.x - static_cast<float>(c.r),
+			c.c.y - static_cast<float>(c.r));
+		result->topLeft = cv::Point(
+			cvRound(result->topLeftF.x),
+			cvRound(result->topLeftF.y));
+
+		m_results.push_back(result);
 	}
+
 	return true;
 }
