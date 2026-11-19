@@ -27,6 +27,9 @@
     <Filter Include="算法\灰度匹配">
       <UniqueIdentifier>{3c206916-61bd-4253-9c0f-a663bcafec67}</UniqueIdentifier>
     </Filter>
+    <Filter Include="算法\圆检测">
+      <UniqueIdentifier>{a42ae95d-563f-4f8f-8fc0-a7a6c41f641e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="openCVTest.qrc">
@@ -61,6 +64,12 @@
     <ClCompile Include="algorithm\ljmatchbase.cpp">
       <Filter>算法</Filter>
     </ClCompile>
+    <ClCompile Include="algorithm\ljalgorithmmanager.cpp">
+      <Filter>算法</Filter>
+    </ClCompile>
+    <ClCompile Include="algorithm\ljcirclematch.cpp">
+      <Filter>算法\圆检测</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="visionWidget.h">
@@ -87,6 +96,12 @@
     </ClInclude>
     <ClInclude Include="algorithm\ljmatchbase.h">
       <Filter>算法</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithm\ljalgorithmmanager.h">
+      <Filter>算法</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithm\ljcirclematch.h">
+      <Filter>算法\圆检测</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

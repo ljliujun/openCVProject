@@ -17,6 +17,7 @@ struct MatchResult
 	MatchResult() : topLeft(0, 0), topLeftF(0.f, 0.f), score(0.0), scale(1.0) {}
 	MatchResult(const cv::Point& p, double s)
 		: topLeft(p), topLeftF(static_cast<float>(p.x), static_cast<float>(p.y)), score(s), scale(1.0) {}
+	virtual ~MatchResult() = default;   // 支持派生结构（如 CircleResult）多态 delete
 };
 
 // ==============================================================

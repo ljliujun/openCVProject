@@ -1,5 +1,6 @@
 ﻿#include "ljmatchbase.h"
 
+
 void LJMatchBase::clearResults()
 {
 	for (auto& match : m_results)

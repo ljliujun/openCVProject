@@ -5,6 +5,7 @@
 #include <QWheelEvent>
 #include <QPixmap>
 #include "algorithm/ljmatchbase.h"
+#include "algorithm/ljcirclematch.h"
 
 LJGraphicsView::LJGraphicsView(QWidget* parent)
 	: QGraphicsView(parent)
@@ -153,6 +154,44 @@ void LJGraphicsView::drawMatchResults(const QSize& templateSize,
 			QStringLiteral("%1").arg(r->score, 0, 'f', 3));
 		text->setBrush(QBrush(QColor(255, 255, 0)));
 		text->setPos(matchRect.topLeft()
+			+ QPointF(2, -text->boundingRect().height() - 2));
+		text->setZValue(51);
+		m_matchMarkers.append(text);
+	}
+}
+
+void LJGraphicsView::drawCircleResults(const std::vector<MatchResult*>& results)
+{
+	clearMatchResults();   // 先清上次的标记
+
+	if (results.empty())
+		return;
+
+	QPen redPen(QColor(255, 0, 0));
+	redPen.setStyle(Qt::DashLine);
+	redPen.setWidthF(2.0);
+	redPen.setCosmetic(true);
+
+	for (const auto* r : results)
+	{
+		const auto* cr = dynamic_cast<const CircleResult*>(r);
+		if (!cr || cr->radius <= 0.0)
+			continue;
+
+		const QRectF circleRect(
+			cr->center.x - cr->radius, cr->center.y - cr->radius,
+			cr->radius * 2.0, cr->radius * 2.0);
+
+		// 画红色虚线圆
+		QGraphicsEllipseItem* circle = m_scene->addEllipse(circleRect, redPen, Qt::NoBrush);
+		circle->setZValue(50);
+		m_matchMarkers.append(circle);
+
+		// 画黄色分数文字（放在圆上方）
+		QGraphicsSimpleTextItem* text = m_scene->addSimpleText(
+			QStringLiteral("%1").arg(cr->score, 0, 'f', 3));
+		text->setBrush(QBrush(QColor(255, 255, 0)));
+		text->setPos(QPointF(cr->center.x, cr->center.y - cr->radius)
 			+ QPointF(2, -text->boundingRect().height() - 2));
 		text->setZValue(51);
 		m_matchMarkers.append(text);

@@ -64,7 +64,7 @@
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="QtSettings">
-    <QtInstall>5.15.2_msvc2019_64</QtInstall>
+    <QtInstall>Qt5.15.2_x64</QtInstall>
     <QtModules>core;gui;widgets</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
@@ -74,7 +74,7 @@
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="QtSettings">
-    <QtInstall>5.15.2_msvc2019_64</QtInstall>
+    <QtInstall>Qt5.15.2_x64</QtInstall>
     <QtModules>core;gui;widgets</QtModules>
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
@@ -194,6 +194,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="algorithm\ljalgorithmmanager.cpp" />
+    <ClCompile Include="algorithm\ljcirclematch.cpp" />
     <ClCompile Include="algorithm\ljgraymatch.cpp" />
     <ClCompile Include="algorithm\ljmatchbase.cpp" />
     <ClCompile Include="ljgraphicsView.cpp" />
@@ -214,6 +216,8 @@
     <QtMoc Include="ljgraphicsView.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="algorithm\ljalgorithmmanager.h" />
+    <ClInclude Include="algorithm\ljcirclematch.h" />
     <ClInclude Include="algorithm\ljgraymatch.h" />
     <ClInclude Include="algorithm\ljmatchbase.h" />
     <ClInclude Include="ljresizableRectItem.h" />

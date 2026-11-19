@@ -5,6 +5,6 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     openCVTest window;
-    window.showMaximized();
+    window.show();
     return app.exec();
 }

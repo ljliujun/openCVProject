@@ -43,6 +43,9 @@ public:
 	//    results:      匹配结果列表（topLeft 是模板左上角原图坐标）
 	void drawMatchResults(const QSize& templateSize,const std::vector<MatchResult*>& results);
 
+	// 2.1) 画一组圆检测结果（红虚线圆 + 分数）
+	void drawCircleResults(const std::vector<MatchResult*>& results);
+
 	// 3) 清除所有红色匹配标记
 	void clearMatchResults();
 protected:
